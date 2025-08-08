@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=350, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Game Hứng Bóng Mini</title>
+  <style>
+    body {
+      margin: 0; padding: 0;
+      background: #eaf6ff;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: system-ui, Arial, sans-serif;
+    }
+    #game {
+      position: relative;
+      width: 350px;
+      height: 600px;
+      background: #fff;
+      border: 2px solid #0099cc;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px #0099cc33;
+      touch-action: none;
+      user-select: none;
+    }
+    #score {
+      position: absolute;
+      left: 12px; top: 12px;
+      font-size: 1.2rem;
+      color: #0076b6;
+      font-weight: bold;
+      z-index: 10;
+    }
+    #catcher {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      width: 90px;
+      height: 18px;
+      background: #ffa726;
+      border-radius: 8px;
+      transform: translateX(-50%);
+      transition: left 0.05s;
+      box-shadow: 0 3px 8px #fa4;
+    }
+    #ball {
+      position: absolute;
+      width: 32px; height: 32px;
+      background: #0076b6;
+      border-radius: 50%;
+      left: 50%;
+      top: 30px;
+      transform: translateX(-50%);
+      box-shadow: 0 4px 16px #0076b633;
+    }
+    #gameover, #startScreen {
+      position: absolute;
+      left: 0; right: 0; top: 42%;
+      text-align: center;
+      font-size: 2rem;
+      color: #e53935;
+      font-weight: bold;
+      display: none;
+      z-index: 20;
+    }
+    #restartBtn, #startBtn {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 10px 20px;
+      font-size: 1.1rem;
+      background: #0076b6;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #startScreen {
+      color: #0076b6;
+      font-size: 2.1rem;
+      background: rgba(255,255,255,0.92);
+      top: 35%;
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <div id="score">Điểm: 0</div>
+    <div id="catcher"></div>
+    <div id="ball"></div>
+    <div id="gameover">
+      Game Over!<br>
+      <button id="restartBtn">Chơi lại</button>
+    </div>
+    <div id="startScreen">
+      Game Hứng Bóng<br>
+      <button id="startBtn">Bắt đầu chơi</button>
+    </div>
+  </div>
+  <script>
+    // Kích thước game
+    const gameW = 350, gameH = 600;
+    const catcherW = 90, catcherH = 18;
+    const ballR = 16;
+    let catcherX = (gameW - catcherW)/2;
+    let ballX, ballY, ballSpeed, score, playing, started = false;
+
+    const catcher = document.getElementById('catcher');
+    const ball = document.getElementById('ball');
+    const scoreEl = document.getElementById('score');
+    const gameover = document.getElementById('gameover');
+    const restartBtn = document.getElementById('restartBtn');
+    const startScreen = document.getElementById('startScreen');
+    const startBtn = document.getElementById('startBtn');
+
+    function resetGame() {
+      catcherX = (gameW - catcherW)/2;
+      ballX = Math.random() * (gameW - 2*ballR) + ballR;
+      ballY = 30;
+      ballSpeed = 3.2;
+      score = 0;
+      playing = true;
+      scoreEl.textContent = "Điểm: 0";
+      gameover.style.display = 'none';
+      moveCatcher();
+      moveBall();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function gameLoop() {
+      if (!playing) return;
+      ballY += ballSpeed;
+      moveBall();
+
+      // Kiểm tra bắt bóng
+      if (
+        ballY + ballR >= gameH - catcherH - 30 &&
+        ballY + ballR <= gameH - 30 &&
+        ballX + ballR > catcherX &&
+        ballX - ballR < catcherX + catcherW
+      ) {
+        score++;
+        scoreEl.textContent = "Điểm: " + score;
+        ballSpeed += 0.12; // Tăng tốc
+        // Bóng mới
+        ballX = Math.random() * (gameW - 2*ballR) + ballR;
+        ballY = 30;
+      } else if (ballY > gameH) {
+        // Game over
+        playing = false;
+        gameover.style.display = 'block';
+      }
+      if (playing) requestAnimationFrame(gameLoop);
+    }
+
+    function moveCatcher() {
+      catcher.style.left = catcherX + "px";
+    }
+    function moveBall() {
+      ball.style.left = (ballX - ballR) + "px";
+      ball.style.top = ballY + "px";
+    }
+
+    // Điều khiển trên mobile (vuốt)
+    let touchStartX = null, catcherStartX = null;
+    document.getElementById('game').addEventListener('touchstart', e => {
+      if (!playing) return;
+      touchStartX = e.touches[0].clientX;
+      catcherStartX = catcherX;
+    });
+    document.getElementById('game').addEventListener('touchmove', e => {
+      if (!playing) return;
+      let dx = e.touches[0].clientX - touchStartX;
+      let newX = catcherStartX + dx;
+      // Giới hạn trong khung
+      if (newX < 0) newX = 0;
+      if (newX > gameW - catcherW) newX = gameW - catcherW;
+      catcherX = newX;
+      moveCatcher();
+    });
+
+    // Điều khiển trên PC (kéo chuột)
+    let isDragging = false, mouseStartX = null, catcherStartMouse = null;
+    document.getElementById('game').addEventListener('mousedown', e => {
+      if (!playing) return;
+      isDragging = true;
+      mouseStartX = e.clientX;
+      catcherStartMouse = catcherX;
+    });
+    document.addEventListener('mouseup', () => isDragging = false);
+    document.addEventListener('mousemove', e => {
+      if (!isDragging || !playing) return;
+      let dx = e.clientX - mouseStartX;
+      let newX = catcherStartMouse + dx;
+      if (newX < 0) newX = 0;
+      if (newX > gameW - catcherW) newX = gameW - catcherW;
+      catcherX = newX;
+      moveCatcher();
+    });
+
+    restartBtn.onclick = function(){
+      resetGame();
+    };
+
+    startBtn.onclick = function(){
+      startScreen.style.display = 'none';
+      started = true;
+      resetGame();
+    };
+
+    // Hiện màn hình bắt đầu khi load
+    window.onload = function(){
+      startScreen.style.display = 'block';
+      gameover.style.display = 'none';
+      moveCatcher();
+      moveBall();
+      playing = false;
+      started = false;
+    };
+  </script>
+</body>
+</html>
